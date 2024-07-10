@@ -40,10 +40,12 @@ all_attr_names = [
 json_data = []
 for data_point in data:
     entry = {}
+    entry["list_id"] = data_point.get("list_id", None)
     entry["price"] = data_point.get("price", None)[0]
     entry["subject"] = data_point.get("subject", None)
     entry["first_publication_date"] = data_point.get("first_publication_date", None)
     entry["status"] = data_point.get("status", None)
+    entry["owner"] = data_point.get("owner", {}).get("type", None)
     entry["body"] = data_point.get("body", None)
     entry["has_phone"] = data_point.get("has_phone", None)
     entry["url"] = data_point.get("url", None)
@@ -62,11 +64,19 @@ for data_point in data:
 # %%
 df = pd.DataFrame(json_data)
 df["corrected_price"] = df.price
-# df.corrected_price.loc[df.corrected_price > 10000] = df.corrected_price[
-#     df.corrected_price > 10000
-# ].apply(lambda x: x / 10 ** int(np.log10(x)) * 1000)
 df.corrected_price.loc[df.corrected_price > 2000] = 2000
-# %%
-df.to_csv("offers_v1.csv", index=False)
 
+df.drop_duplicates(subset=["url"], inplace=True)
+
+type_to_not_keep = ["Parking", "Autre"]
+df = df[~df["real_estate_type"].isin(type_to_not_keep)]
+work_pos = (45.75876540139132, 4.843617332944105)
+df["distance"] = df.apply(
+    lambda x: np.linalg.norm([x["lat"] - work_pos[0], x["lng"] - work_pos[1]], ord=2),
+    axis=1,
+)
+
+df_dict = df.to_dict(orient="records")
+with open("offers_v2.json", "w") as f:
+    json.dump(df_dict, f, indent=4, ensure_ascii=False)
 # %%
